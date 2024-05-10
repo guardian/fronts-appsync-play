@@ -12,11 +12,15 @@ export const CollectionData = z.object({
   id: z.string(),
   Type: z.string(),
   Backfill: z.string().optional(),
+  BackfillType: z.string().optional(),
+  DisplayName: z.string().optional(),
   LastUpdated: z.string().optional(), //expect an ISO datetime
   Metadata: z.unknown().optional(),
   Uneditable: z.boolean().optional(),
   UpdatedBy: z.string().optional(),
-  UpdatedEmail: z.string().optional()
+  UpdatedEmail: z.string().optional(),
+  Canonical: z.string().optional(),
+
 })
 
 export type CollectionData = z.infer<typeof CollectionData>;

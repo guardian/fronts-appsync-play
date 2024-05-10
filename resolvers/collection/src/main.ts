@@ -19,6 +19,13 @@ function parseGremlinResponse(response:gremlin.process.Traverser[]):CollectionDa
   }).filter(value=>!!value);
 }
 
+function buildQuery(g:gremlin.process.GraphTraversalSource, args:CollectionArguments):gremlin.process.GraphTraversal {
+  let query = g.V().hasLabel("Collection");
+
+  if(args.id) query = query.has('id', args.id);
+  return query.limit(args.limit ?? 10);
+}
+
 export const handler:Handler = async (incomingEvent:unknown, context):Promise<CollectionData[]> => {
   console.log("Received event {}", JSON.stringify(incomingEvent, null, 3));
   console.log("Context is {}", JSON.stringify(context, null, 3));
@@ -30,7 +37,7 @@ export const handler:Handler = async (incomingEvent:unknown, context):Promise<Co
 
   const g = traversal().withRemote(new gremlin.driver.DriverRemoteConnection(NeptuneGremlinUrl));
 
-  const nodes = await g.V().has(T.label, "Collection").limit(args?.limit ?? 10).elementMap().toList();
+  const nodes = await buildQuery(g, args).elementMap().toList();
 
   return parseGremlinResponse(nodes);
 }
