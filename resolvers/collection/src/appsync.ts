@@ -6,6 +6,7 @@ export const AppsyncEventFromResolver = z.object({
   fieldName: z.string().nonempty(),
   parentTypeName: z.string().nonempty(),
   variables: z.unknown(),
+  source: z.unknown(),
   selectionSetList: z.array(z.string()),
   selectionSetGraphQL: z.string()
 });

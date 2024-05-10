@@ -8,6 +8,7 @@ import * as gremlin from "gremlin";
 
 const traversal = gremlin.process.AnonymousTraversalSource.traversal;
 const T = gremlin.process.t;
+const __ = gremlin.process.statics;
 
 function parseGremlinResponse<T>(response:gremlin.process.Traverser[], parser:(source:unknown)=>T):T[] {
   return response.map(v=>{
@@ -21,25 +22,39 @@ function parseGremlinResponse<T>(response:gremlin.process.Traverser[], parser:(s
   }).filter(value=>!!value);
 }
 
-async function resolveCollections(g:gremlin.process.GraphTraversalSource, event:AppsyncEventFromResolver, args:CollectionArguments):Promise<CollectionData[]> {
-  let query = g.V().hasLabel("Collection");
+async function resolveCollections(g:gremlin.process.GraphTraversalSource, event:AppsyncEventFromResolver):Promise<CollectionData[]> {
+  let query;
+  switch(event.parentTypeName) {
+    case "Query":
+      query = g.V().hasLabel("Collection"); //root query
+      break;
+    case "Front":   //lookup of a collection from a front
+      const frontSource = Front.parse(event.source);
+      const frontId = frontSource.id;
+      console.log(`Querying collections for front ID ${frontId}`);
+      query = g.V().hasLabel("Front").hasId(frontId).outE("collection").inV();
+  }
+  const args = event.arguments ? CollectionArguments.parse(event.arguments) : undefined;
 
-  if(args.id) query = query.hasId(args.id);
-  if(args.HRef) query = query.has('HRef', args.HRef);
-  if(args.type) query = query.has('Type', args.type);
+  if(args?.id) query = query.hasId(args.id);
+  if(args?.HRef) query = query.has('HRef', args.HRef);
+  if(args?.type) query = query.has('Type', args.type);
   //if(args.updatedSince) query = query.where('')
 
-  const nodes = await query.limit(args.limit ?? 10).elementMap().toList();
+  const nodes = await query.limit(args?.limit ?? 10).elementMap().toList();
 
   return parseGremlinResponse(nodes, CollectionData.parse);
 }
 
-async function resolveFronts(g:gremlin.process.GraphTraversalSource, event:AppsyncEventFromResolver, args:FrontArguments):Promise<Front[]> {
+async function resolveFronts(g:gremlin.process.GraphTraversalSource, event:AppsyncEventFromResolver):Promise<Front[]> {
   let query = g.V().hasLabel("Front");
+  const args = event.arguments ? FrontArguments.parse(event.arguments) : undefined;
 
   if(args.id) query = query.hasId(args.id);
   if(args.canonical) query = query.has('Canonical', args.canonical);
   if(args.showHidden) query = query.has('ShowHidden', args.showHidden);
+  if(args.priority) query = query.has('Priority', args.priority);
+
   const nodes = await query.limit(args.limit ?? 10).elementMap().toList();
   return parseGremlinResponse(nodes, Front.parse);
 }
@@ -53,14 +68,12 @@ export const handler:Handler = async (incomingEvent:unknown, context) => {
   const g = traversal().withRemote(new gremlin.driver.DriverRemoteConnection(NeptuneGremlinUrl));
 
   const event = AppsyncEventFromResolver.parse(incomingEvent);
-  let args;
+
   switch(event.fieldName) {
     case "collections": // user is querying collections
-      args = event.arguments ? CollectionArguments.parse(event.arguments) : undefined;
-      return resolveCollections(g, event, args);
+      return resolveCollections(g, event);
     case "fronts":
-      args = event.arguments ? FrontArguments.parse(event.arguments) : undefined;
-      return resolveFronts(g, event, args);
+      return resolveFronts(g, event);
     default:
       throw new Error(`Unrecognised query type ${event.fieldName}`);
   }
