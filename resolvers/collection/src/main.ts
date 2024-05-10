@@ -22,7 +22,10 @@ function parseGremlinResponse(response:gremlin.process.Traverser[]):CollectionDa
 function buildQuery(g:gremlin.process.GraphTraversalSource, args:CollectionArguments):gremlin.process.GraphTraversal {
   let query = g.V().hasLabel("Collection");
 
-  if(args.id) query = query.has('id', args.id);
+  if(args.id) query = query.hasId(args.id);
+  if(args.HRef) query = query.has('HRef', args.HRef);
+  if(args.type) query = query.has('Type', args.type);
+  //if(args.updatedSince) query = query.where('')
   return query.limit(args.limit ?? 10);
 }
 
