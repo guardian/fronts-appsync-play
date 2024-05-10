@@ -9,6 +9,7 @@ import * as gremlin from "gremlin";
 const traversal = gremlin.process.AnonymousTraversalSource.traversal;
 const T = gremlin.process.t;
 const __ = gremlin.process.statics;
+const keys = gremlin.process.column.keys
 
 function parseGremlinResponse<T>(response:gremlin.process.Traverser[], parser:(source:unknown)=>T):T[] {
   return response.map(v=>{
@@ -23,12 +24,12 @@ function parseGremlinResponse<T>(response:gremlin.process.Traverser[], parser:(s
 }
 
 async function resolveCollections(g:gremlin.process.GraphTraversalSource, event:AppsyncEventFromResolver):Promise<CollectionData[]> {
-  let query;
+  let query:gremlin.process.GraphTraversal;
   switch(event.parentTypeName) {
-    case "Query":
-      query = g.V().hasLabel("Collection"); //root query
+    case "Query":   //lookup from root of query
+      query = g.V().hasLabel("Collection");
       break;
-    case "Front":   //lookup of a collection from a front
+    case "Front":   //lookup of a collections from a front, so limit to collections connected to that front.
       const frontSource = Front.parse(event.source);
       const frontId = frontSource.id;
       console.log(`Querying collections for front ID ${frontId}`);
@@ -50,6 +51,7 @@ async function resolveFronts(g:gremlin.process.GraphTraversalSource, event:Appsy
   let query = g.V().hasLabel("Front");
   const args = event.arguments ? FrontArguments.parse(event.arguments) : undefined;
 
+
   if(args.id) query = query.hasId(args.id);
   if(args.canonical) query = query.has('Canonical', args.canonical);
   if(args.showHidden) query = query.has('ShowHidden', args.showHidden);
@@ -57,6 +59,12 @@ async function resolveFronts(g:gremlin.process.GraphTraversalSource, event:Appsy
 
   const nodes = await query.limit(args.limit ?? 10).elementMap().toList();
   return parseGremlinResponse(nodes, Front.parse);
+}
+
+async function resolveCollectionTypes(g:gremlin.process.GraphTraversalSource, event:AppsyncEventFromResolver):Promise<string[]> {
+  const query = g.V().hasLabel("Collection").group().by('Type').unfold().select(keys).order();
+  const nodes = await query.toList();
+  return nodes as string[];
 }
 
 export const handler:Handler = async (incomingEvent:unknown, context) => {
@@ -74,6 +82,8 @@ export const handler:Handler = async (incomingEvent:unknown, context) => {
       return resolveCollections(g, event);
     case "fronts":
       return resolveFronts(g, event);
+    case "collectionTypes":
+      return resolveCollectionTypes(g, event);
     default:
       throw new Error(`Unrecognised query type ${event.fieldName}`);
   }

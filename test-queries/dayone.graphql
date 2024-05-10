@@ -1,0 +1,18 @@
+query MyQuery {
+    fronts(priority: "commercial") {
+        id
+        Canonical
+        IsHidden
+        Priority
+        collections(type:"fixed/small/slow-IV") {
+            id
+            Type
+            Metadata
+            DisplayName
+        }
+    }
+}
+
+query ListTypes {
+    collectionTypes
+}
