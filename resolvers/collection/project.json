@@ -25,9 +25,9 @@
       "options": {
         "platform": "node",
         "outputPath": "dist/resolvers/collection",
-        "format": ["cjs"],
+        "format": ["esm"],
         "bundle": true,
-        "external": ["@aws-sdk/*"],
+        "external": ["@aws-sdk/*","@aws-appsync"],
         "main": "resolvers/collection/src/main.ts",
         "tsConfig": "resolvers/collection/tsconfig.app.json",
         "generatePackageJson": true,
