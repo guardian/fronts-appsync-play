@@ -1,0 +1,1 @@
+export const NeptuneGremlinUrl = process.env["NEPTUNE_GREMLIN_URL"];
